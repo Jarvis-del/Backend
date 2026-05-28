@@ -222,6 +222,27 @@ On logout, the JWT is written to a `blackList` collection. The auth middleware c
  a valid, non-expired token is rejected if it appears in the blacklist.
 
 
+### How Transfer ACtually Works
+
+POST /api/transactions
+        │
+        ├─ 1. Validate fields (fromAccount, toAccount, amount, idempotencyKey)
+        ├─ 2. Check idempotency key → return early if already processed
+        ├─ 3. Verify both accounts are ACTIVE
+        ├─ 4. getBalance() → aggregate ledger → check sufficient funds
+        │
+        ├─ 5. mongoose.startSession() → session.startTransaction()
+        │       ├─ Create transaction { status: PENDING }
+        │       ├─ Create DEBIT ledger entry  (fromAccount)
+        │       ├─ [15s simulated processing delay]
+        │       ├─ Create CREDIT ledger entry (toAccount)
+        │       └─ Update transaction { status: COMPLETED }
+        ├─ 6. session.commitTransaction()  ← atomic, all-or-nothing
+        │
+        └─ 7. Send email notification to sender
+
+
+
 ## 🧠 Design Decisions
 
 **Idempotency keys on every transfer**
